@@ -180,7 +180,25 @@ The extension hooks three pi lifecycle events:
 2. **`tool_call`** — intercepts `write`/`edit`/`bash`, checks if the relevant context was loaded via `read_context()`, blocks the call if not
 3. **`before_agent_start`** — injects the context-loading instruction into the system prompt at every turn
 
-Because the enforcement is at the **tool execution level**, no model can bypass it by ignoring instructions. This is the same technique used by OpenAgentsControl's runtime context discovery — but implemented as a lightweight pi extension.
+Because the enforcement is at the **tool execution level**, no model can bypass it by ignoring instructions.
+
+---
+
+## Credits
+
+This package builds on concepts and code from two foundational open-source projects:
+
+### [Superpowers](https://github.com/obra/superpowers) by [Jesse Vincent](https://github.com/obra) and [Prime Radiant](https://primeradiant.com/) *(219k ★)*
+
+The 10 workflow skills bundled in this package (brainstorming, writing-plans, TDD, code review, systematic debugging, etc.) are adapted from [Superpowers](https://github.com/obra/superpowers) — a complete software development methodology for coding agents. We use their proven skill format (frontmatter, checklists, process diagrams, red flags tables) with modifications to reference the global context system.
+
+Superpowers is MIT-licensed. See their [repository](https://github.com/obra/superpowers) for the original skills and documentation.
+
+### [OpenAgentsControl](https://github.com/darrenhinde/OpenAgentsControl) by [Darren Hinde](https://github.com/darrenhinde) *(4.3k ★)*
+
+The context enforcement pattern (`read_context()` gate, pre-execution context loading, critical constraint rules) is inspired by [OpenAgentsControl](https://github.com/darrenhinde/OpenAgentsControl). OAC pioneered the approach of using subagents (ContextScout) to discover context before execution, hard enforcement rules with auto-stop consequences, and context bundling for subagent delegation. We adapted these concepts into a lightweight pi extension with system-level tool blocking.
+
+OAC is MIT-licensed. See their [repository](https://github.com/darrenhinde/OpenAgentsControl) for the full context management system and agent framework.
 
 ---
 
