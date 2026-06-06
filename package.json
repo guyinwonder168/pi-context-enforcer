@@ -1,0 +1,24 @@
+{
+  "name": "pi-context-enforcer",
+  "version": "1.0.0",
+  "description": "System-level context enforcement for pi: read_context() gate, subagent dispatch, and code quality standards",
+  "keywords": ["pi-package", "context", "subagent", "skills", "quality"],
+  "license": "MIT",
+  "author": {
+    "name": "guyinwonder168",
+    "url": "https://github.com/guyinwonder168"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/guyinwonder168/pi-context-enforcer"
+  },
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"],
+    "prompts": ["./prompts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  }
+}
