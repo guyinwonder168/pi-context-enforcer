@@ -1,123 +1,88 @@
-# pi-context-enforcer
+<p align="center">
+  <img src="https://img.shields.io/badge/pi--package-v1.0.0-blue" alt="pi-package">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
+  <img src="https://img.shields.io/badge/models-all-brightgreen" alt="all models">
+</p>
 
-System-level context enforcement for pi coding agent. **Makes all LLM models behave consistently** by enforcing context loading at the tool level — not instruction level.
+<h1 align="center">pi-context-enforcer</h1>
+<p align="center"><em>System-level context enforcement for pi — makes every LLM model behave consistently.</em></p>
 
-## What It Does
+---
 
-### 1. Context Enforcement (System-Level)
+## Problem
 
-Registers a `read_context()` tool that the LLM must call before any `write`/`edit`/`bash`. If it doesn't, the extension **blocks the call**:
+Different LLM models follow instructions differently. Write instructions in `AGENTS.md` and a cheap model ignores them. A frontier model follows them for a while, then forgets mid-session. The result: inconsistent code quality, missed patterns, wasted rework.
+
+## Solution
+
+**Tool-level enforcement, not instruction-level.** A pi extension registers a `read_context()` tool and **blocks** `write`/`edit`/`bash` calls until context is loaded. Every model — DeepSeek, Gemini, GPT, Claude — hits the same gate. No amount of rationalization bypasses it.
 
 ```
-LLM calls write("src/main.py")
-  → BLOCKED: "Context 'code' not loaded. Call read_context({ context_type: "code" }) first."
+LLM: write("src/main.py")
+     ✋ BLOCKED — "Context 'code' not loaded.
+                   Call read_context({ context_type: "code" }) first."
+LLM: read_context({ context_type: "code" })
+     ✅ Context loaded — content returned, gate records it
+LLM: write("src/main.py")
+     ✅ Allowed — context was loaded
 ```
 
-This works on **every model** — DeepSeek, Gemini, GPT, Claude — because it's enforced at the tool execution level, not via instruction text.
+---
 
-### 2. Global Code Standards
+## Features
 
-Four context files are auto-installed to `~/.pi/agent/context/`:
+### 1. `read_context()` Gate
 
-| File | Purpose |
-|------|---------|
+Four code standards files, auto-installed on first run:
+
+| File | What it covers |
+|------|----------------|
 | `code-standards.md` | Code quality, naming, error handling, structure |
 | `test-standards.md` | TDD workflow, test patterns, coverage expectations |
 | `documentation-standards.md` | Docstring formats, README structure, anti-patterns |
-| `security-patterns.md` | Secrets management, path traversal protection, API security |
+| `security-patterns.md` | Secrets, path traversal, API security checklist |
 
-The `read_context()` tool reads and returns the relevant file's content while recording that context has been loaded.
+Before any write/edit/bash, the extension checks whether the relevant context was loaded. If not, the tool call is **blocked** with a clear reason.
 
-### 3. Subagent System
+### 2. Subagent System
 
-Four agent definitions are auto-installed to `~/.pi/agent/agents/`:
+Four agents with model routing, auto-installed on first run:
 
-| Agent | Purpose | Model | Tools |
-|-------|---------|-------|-------|
-| `scout` | Fast codebase recon | deepseek-v4-flash | read, grep, find, ls, bash |
-| `planner` | Implementation plans | gpt-5.5 | read, grep, find, ls |
-| `worker` | Code implementation | deepseek-v4-pro | all default |
-| `reviewer` | Code review | gpt-5.5 | read, grep, find, ls, bash |
+| Agent | Model | Role | Tools |
+|-------|-------|------|-------|
+| `scout` | `deepseek-v4-flash` | Fast codebase recon | read, grep, find, ls, bash |
+| `planner` | `gpt-5.5` | Architecture & plan | read, grep, find, ls |
+| `worker` | `deepseek-v4-pro` | Implementation | all default |
+| `reviewer` | `gpt-5.5` | Code review | read, grep, find, ls, bash |
 
-Workflow prompt templates (accessible via `/command`):
+Chained workflow commands:
 
-| Command | Flow |
-|---------|------|
+| Command | Pipeline |
+|---------|----------|
 | `/implement <query>` | scout → planner → worker |
 | `/scout-and-plan <query>` | scout → planner |
 | `/implement-and-review <query>` | worker → reviewer → worker |
 
-In a chain, each subagent runs as an isolated `pi` process with its own model, tools, and context window.
+Each subagent runs as an isolated `pi` process with its own model, tools, context window, and **its own context enforcement** — `read_context()` gates apply recursively.
 
-### 4. Workflow Skills
+### 3. Workflow Skills
 
-Ten Superpowers workflow skills are included, forming a complete development methodology:
+Ten development methodology skills, auto-discovered by pi:
 
-| Skill | When It Triggers |
-|-------|-----------------|
+| Skill | Triggers when |
+|-------|---------------|
 | `brainstorming` | Before any creative work — refines ideas into designs |
-| `writing-plans` | After design approval — breaks work into bite-sized tasks |
-| `subagent-driven-development` | Executes tasks via isolated subagents with 2-stage review |
+| `writing-plans` | After design approval — breaks work into tasks |
+| `subagent-driven-development` | Executes tasks via isolated subagents, 2-stage review |
 | `executing-plans` | Alternative: batch execution with human checkpoints |
 | `test-driven-development` | During implementation — RED-GREEN-REFACTOR |
-| `requesting-code-review` | Between tasks — reviews against the plan |
+| `requesting-code-review` | Between tasks — reviews against plan |
 | `verification-before-completion` | Before claiming done — runs tests, checks diagnostics |
 | `finishing-a-development-branch` | When tasks complete — merge/PR/discard decision |
 | `systematic-debugging` | On bugs — 4-phase root cause process |
-| `using-superpowers` | Session bootstrap — loads context + skills references |
+| `using-superpowers` | Session bootstrap — loads context system reference |
 
-## The Complete Flow
-
-```
-Session Start
-  │
-  ├─► using-superpowers skill loads
-  │   → Shows Quick Routes (code/tests/docs/security → context file)
-  │   → Shows Red Flags for context-skipping rationalization
-  │
-  ├─► context-enforcer extension loads
-  │   → Registers read_context() tool
-  │   → Blocks write/edit/bash until context loaded (all models)
-  │   → Auto-installs agents + context files (first run only)
-  │
-  ▼
-You: "I want to add a caching layer to the API"
-
-  │
-  ├─► Skill: brainstorming
-  │   → Explores project, asks questions, proposes 2-3 approaches
-  │   → Presents design, gets approval, saves spec
-  │
-  ├─► Skill: writing-plans
-  │   → Breaks design into tasks (2-5 min each)
-  │   → Each task: file paths, what to change, verification
-  │
-  ▼
-Two paths:
-
-  PATH A: /implement-and-review add redis caching        PATH B: Manual
-    │                                                      │
-    ├─ scout (deepseek-v4-flash)                            ├─ read_context("code")
-    │   → Fast file search                                  │   → Extension reads context
-    │                                                       │   → Records it
-    ├─ planner (gpt-5.5) ← FRONTIER                        │
-    │   → Architecture plan                                ├─ write/edit/bash
-    │                                                       │   → Allowed (context loaded)
-    ├─ worker (deepseek-v4-pro)
-    │   → read_context("code") enforced                     ├─ Skill: TDD
-    │   → Implements plan                                   │   → RED-GREEN-REFACTOR
-    │   → Writes, tests, commits
-    │                                                       ├─ Skill: code review
-    └─ reviewer (gpt-5.5) ← FRONTIER                        │   → Verify against plan
-        → Reads diff, checks quality
-        → Critical/Warning/Suggestion                       └─ Skill: verification
-                                                                 → Tests pass, diagnostics clean
-
-  ▼
-Skill: finishing-a-development-branch
-  → Full test suite
-  → Options: merge / PR / keep / discard
-```
+---
 
 ## Installation
 
@@ -125,75 +90,99 @@ Skill: finishing-a-development-branch
 pi install git:github.com/guyinwonder168/pi-context-enforcer
 ```
 
-Or for a quick test:
+For a quick test without installing:
 
 ```bash
 pi -e git:github.com/guyinwonder168/pi-context-enforcer
 ```
 
-### What Gets Installed
+### What gets installed
 
 | Path | Content |
 |------|---------|
-| `~/.pi/agent/extensions/pi-context-enforcer/` | Extension (context enforcer + subagent dispatch) |
-| `~/.pi/agent/skills/*/` | 10 workflow skills (brainstorming, TDD, code review, etc.) |
-| `~/.pi/agent/agents/*.md` | Scout, planner, worker, reviewer definitions |
-| `~/.pi/agent/context/*.md` | code-standards, test-standards, docs-standards, security-patterns |
-| `~/.pi/agent/CONTEXT.md` | Context navigation index with Quick Routes table |
-| `~/.pi/agent/prompts/*.md` | `/implement`, `/scout-and-plan`, `/implement-and-review` |
+| `extensions/` | Context enforcer `read_context()` tool + write/edit/bash interceptor |
+| `extensions/subagent/` | Subagent dispatch (scout → planner → worker → reviewer) |
+| `skills/` (10) | Brainstorming, TDD, code review, systematic debugging, etc. |
+| `prompts/` (3) | `/implement`, `/scout-and-plan`, `/implement-and-review` commands |
+| `~/.pi/agent/agents/` | Scout, planner, worker, reviewer definitions *(auto-copied)* |
+| `~/.pi/agent/context/` | Code, test, docs, security standards *(auto-copied)* |
+| `~/.pi/agent/CONTEXT.md` | Context navigation index with Quick Routes *(auto-copied)* |
 
-Agents, context files, and CONTEXT.md are auto-copied on first `session_start`. You can edit them anytime.
+No manual setup required after `pi install`.
+
+---
 
 ## Usage
 
-### In Chat
+### Single step: read context
 
 ```
-# Read context before any work
 read_context({ context_type: "all" })
-
-# Then proceed
-write ...
 ```
 
-### Via Subagent Workflows
+Then proceed with any task. All standards are loaded, gate is open for all task types.
+
+### Multi-step: full development cycle
 
 ```
-/implement add input validation to the login form
+You: "I want to add input validation to the API"
+
+     ↓ Skill: brainstorming explores, asks questions, proposes design
+     ↓ Skill: writing-plans breaks into tasks
+     ↓ read_context({ context_type: "code" })
+     ↓ write/edit/bash — all allowed
+     ↓ Skill: verification-before-completion (tests, diagnostics)
+     ↓ Skill: finishing-a-development-branch (merge/PR)
 ```
 
-```
-/implement-and-review add caching to the database layer
-```
+### Subagent workflow
 
 ```
-/scout-and-plan refactor the auth module to use OAuth
+/implement-and-review add input validation to the login form
+
+     ↓ scout: finds relevant API files, data flow
+     ↓ planner: produces step-by-step implementation plan
+     ↓ worker: implements (read_context() enforced)
+     ↓ reviewer: reads diff, returns quality report
 ```
 
-## How the Models Are Routed
+---
+
+## Model Routing
 
 ```
 Your chat ─── deepseek-v4-flash (cheap orchestrator)
   │
-  ├── scout ── deepseek-v4-flash (fast file search)
+  ├── scout ── deepseek-v4-flash (cheap — file search)
   ├── planner ── gpt-5.5 (frontier — architecture decisions)
   ├── worker ── deepseek-v4-pro (mid — mechanical implementation)
   └── reviewer ── gpt-5.5 (frontier — bug detection)
 ```
 
-You only pay frontier costs for planning + review. Everything else runs on cheap models.
+You only pay frontier costs for the two steps that need them (planning + review). Everything else runs on cheap models. Agent model assignments can be changed by editing `~/.pi/agent/agents/*.md` frontmatter.
+
+---
 
 ## Uninstall
 
 ```bash
 pi remove pi-context-enforcer
+rm -rf ~/.pi/agent/agents ~/.pi/agent/context ~/.pi/agent/CONTEXT.md
 ```
 
-Optionally remove auto-installed files:
+---
 
-```bash
-rm -rf ~/.pi/agent/agents ~/.pi/agent/context
-```
+## How it works
+
+The extension hooks three pi lifecycle events:
+
+1. **`session_start`** — auto-copies agent definitions and context files if they don't exist yet
+2. **`tool_call`** — intercepts `write`/`edit`/`bash`, checks if the relevant context was loaded via `read_context()`, blocks the call if not
+3. **`before_agent_start`** — injects the context-loading instruction into the system prompt at every turn
+
+Because the enforcement is at the **tool execution level**, no model can bypass it by ignoring instructions. This is the same technique used by OpenAgentsControl's runtime context discovery — but implemented as a lightweight pi extension.
+
+---
 
 ## License
 
